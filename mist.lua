@@ -287,6 +287,7 @@ do -- the main scope
 												mist.DBs.units[coa_name][countryName][category][group_num].startTime = group_data.start_time
 												mist.DBs.units[coa_name][countryName][category][group_num].task = group_data.task
 												mist.DBs.units[coa_name][countryName][category][group_num].hidden = group_data.hidden
+												mist.DBs.units[coa_name][countryName][category][group_num].hiddenOnMFD = group_data.hiddenOnMFD
 
 												mist.DBs.units[coa_name][countryName][category][group_num].units = {}
 
@@ -657,7 +658,6 @@ do -- the main scope
             ["FARP"] = "farps",
             ["Fueltank"] = "fueltank_cargo",
             ["Gate"] = "gate",
-            ["FARP Fuel Depot"] = "gsm rus",
             ["Armed house"] = "home1_a",
             ["FARP Command Post"] = "kp-ug",
             ["Watch Tower Armed"] = "ohr-vyshka",
@@ -666,7 +666,6 @@ do -- the main scope
             ["Pipes big"] = "pipes_big_cargo",
             ["Oil platform"] = "plavbaza",
             ["Tetrapod"] = "tetrapod_cargo",
-            ["Fuel tank"] = "toplivo",
             ["Trunks long"] = "trunks_long_cargo",
             ["Trunks small"] = "trunks_small_cargo",
             ["Passenger liner"] = "yastrebow",
@@ -756,7 +755,10 @@ do -- the main scope
 				if mist.DBs.aliveUnits and mist.DBs.aliveUnits[val.object.id_] then
 					----dbLog:info('object found in alive_units')
 					val.objectData = mist.utils.deepCopy(mist.DBs.aliveUnits[val.object.id_])
-					local pos = Object.getPosition(val.object)
+					local pos = nil
+					if Object.isExist(val.object) then
+						pos = Object.getPosition(val.object)
+					end
 					if pos then
 						val.objectPos = pos.p
 					end
@@ -765,7 +767,10 @@ do -- the main scope
 				elseif mist.DBs.removedAliveUnits and mist.DBs.removedAliveUnits[val.object.id_] then	-- it didn't exist in alive_units, check old_alive_units
 					----dbLog:info('object found in old_alive_units')
 					val.objectData = mist.utils.deepCopy(mist.DBs.removedAliveUnits[val.object.id_])
-					local pos = Object.getPosition(val.object)
+					local pos = nil
+					if Object.isExist(val.object) then
+						pos = Object.getPosition(val.object)
+					end
 					if pos then
 						val.objectPos = pos.p
 					end
@@ -773,7 +778,11 @@ do -- the main scope
 
 				else	--attempt to determine if static object...
 					----dbLog:info('object not found in alive units or old alive units')
-					local pos = Object.getPosition(val.object)
+					local pos = nil
+					if Object.isExist(val.object) then
+						pos = Object.getPosition(val.object)
+					end
+
 					if pos then
 						local static_found = false
 						for ind, static in pairs(mist.DBs.unitsByCat.static) do
@@ -926,6 +935,7 @@ do -- the main scope
 					newTable.uncontrolled = data.uncontrolled
 					newTable.radioSet = data.radioSet
 					newTable.hidden = data.hidden
+					newTable.hiddenOnMFD = data.hiddenOnMFD
 					newTable.startTime = data.start_time
 					mistAddedGroups[index] = nil
 				end
@@ -934,6 +944,7 @@ do -- the main scope
 			if gfound == false then
 				newTable.uncontrolled = false
 				newTable.hidden = false
+				newTable.hiddenOnMFD = false
 			end
 
 			newTable.units = {}
@@ -1327,7 +1338,10 @@ do -- the main scope
 				if mist.DBs.aliveUnits and mist.DBs.aliveUnits[val.object.id_] then
 					--log:info('object found in alive_units')
 					val.objectData = mist.utils.deepCopy(mist.DBs.aliveUnits[val.object.id_])
-					local pos = Object.getPosition(val.object)
+					local pos = nil
+					if Object.isExist(val.object) then
+						pos = Object.getPosition(val.object)
+					end
 					if pos then
 						val.objectPos = pos.p
 					end
@@ -1339,7 +1353,10 @@ do -- the main scope
 				elseif mist.DBs.removedAliveUnits and mist.DBs.removedAliveUnits[val.object.id_] then	-- it didn't exist in alive_units, check old_alive_units
 					--log:info('object found in old_alive_units')
 					val.objectData = mist.utils.deepCopy(mist.DBs.removedAliveUnits[val.object.id_])
-					local pos = Object.getPosition(val.object)
+					local pos = nil
+					if Object.isExist(val.object) then
+						pos = Object.getPosition(val.object)
+					end
 					if pos then
 						val.objectPos = pos.p
 					end
@@ -1347,7 +1364,11 @@ do -- the main scope
 
 				else	--attempt to determine if static object...
 					--log:info('object not found in alive units or old alive units')
-					local pos = Object.getPosition(val.object)
+					local pos = nil
+					if Object.isExist(val.object) then
+						pos = Object.getPosition(val.object)
+					end
+					
 					if pos then
 						local static_found = false
 						for ind, static in pairs(mist.DBs.unitsByCat.static) do
@@ -1716,6 +1737,10 @@ do -- the main scope
 		if not newGroup.hidden then
 			newGroup.hidden = false
 		end
+		
+		if not newGroup.hiddenOnMFD then
+			newGroup.hiddenOnMFD = false
+		end
 
 		if not newGroup.visible then
 			newGroup.visible = false
@@ -1834,7 +1859,11 @@ do -- the main scope
 			newGroup.units[unitIndex].unitName = nil
 		end
         
-		coalition.addGroup(country.id[newCountry], Unit.Category[newCat], newGroup)
+		if not country.id[newCountry] then
+			env.info('Could not find country ['..newCountry..']')
+		else
+			coalition.addGroup(country.id[newCountry], Unit.Category[newCat], newGroup)
+		end
 
 		return newGroup
 
@@ -1919,8 +1948,8 @@ do
 		if acc == 0 then
 			return MGRS.UTMZone .. ' ' .. MGRS.MGRSDigraph
 		else
-			return MGRS.UTMZone .. ' ' .. MGRS.MGRSDigraph .. ' ' .. string.format('%0' .. acc .. 'd', mist.utils.round(MGRS.Easting/(10^(5-acc)), 0))
-			.. ' ' .. string.format('%0' .. acc .. 'd', mist.utils.round(MGRS.Northing/(10^(5-acc)), 0))
+			return MGRS.UTMZone .. ' ' .. MGRS.MGRSDigraph .. ' ' .. string.format('%0' .. acc .. 'd', math.floor(MGRS.Easting/(10^(5-acc))))
+			.. ' ' .. string.format('%0' .. acc .. 'd', math.floor(MGRS.Northing/(10^(5-acc))))
 		end
 	end
 
@@ -1982,8 +2011,8 @@ do
 				secFrmtStr = '%0' .. width .. '.' .. acc .. 'f'
 			end
 
-			return string.format('%02d', latDeg) .. ' ' .. string.format('%02d', latMin) .. '\' ' .. string.format(secFrmtStr, latSec) .. '"' .. latHemi .. '	 '
-			.. string.format('%02d', lonDeg) .. ' ' .. string.format('%02d', lonMin) .. '\' ' .. string.format(secFrmtStr, lonSec) .. '"' .. lonHemi
+			return '['..latHemi..' '..string.format('%02d', latDeg) .. ' ' .. string.format('%02d', latMin) .. '\' ' .. string.format(secFrmtStr, latSec) .. '"]' .. '	 '
+			..'['..lonHemi..' ' .. string.format('%02d', lonDeg) .. ' ' .. string.format('%02d', lonMin) .. '\' ' .. string.format(secFrmtStr, lonSec) .. '"]'
 
 		else	-- degrees, decimal minutes.
 			latMin = mist.utils.round(latMin, acc)
@@ -2007,8 +2036,8 @@ do
 				minFrmtStr = '%0' .. width .. '.' .. acc .. 'f'
 			end
 
-			return string.format('%02d', latDeg) .. ' ' .. string.format(minFrmtStr, latMin) .. '\'' .. latHemi .. '	 '
-			.. string.format('%02d', lonDeg) .. ' ' .. string.format(minFrmtStr, lonMin) .. '\'' .. lonHemi
+			return '['..latHemi..' ' .. string.format('%02d', latDeg) .. ' ' .. string.format(minFrmtStr, latMin) .. '\']' .. '	 '
+			..'['.. lonHemi..' ' .. string.format('%02d', lonDeg) .. ' ' .. string.format(minFrmtStr, lonMin) .. '\']' 
 
 		end
 	end
@@ -3774,6 +3803,7 @@ do -- group functions scope
 			newData.category = newGroup:getCategory()
 			newData.groupName = gpName
 			newData.hidden = dbData.hidden
+			newData.hiddenOnMFD = dbData.hiddenOnMFD
 
 			if newData.category == 2 then
 				newData.category = 'vehicle'
@@ -4074,6 +4104,12 @@ do -- group functions scope
 			action = 'tele'
 			newGroupData = vars.groupData
 		end
+
+		if vars.heading then
+			for unitNum, unitData in pairs(newGroupData.units) do
+				newGroupData.units[unitNum].heading = vars.heading
+			end
+		end
         
         if vars.newGroupName then
             newGroupData.groupName = vars.newGroupName
@@ -4098,6 +4134,8 @@ do -- group functions scope
                 validTerrain = {'SHALLOW_WATER' , 'WATER'}
             elseif string.lower(newGroupData.category) == 'vehicle' then
                 validTerrain = {'LAND', 'ROAD'}
+            elseif string.lower(newGroupData.category) == 'static' then
+                validTerrain = {'LAND', 'WATER'}
             end
         end
 
